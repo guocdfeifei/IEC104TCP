@@ -8,3 +8,5 @@ The way to build IEC104 packets is shown in the iec104_tcp_packets.py file. The 
 In term of the Server side, it is coded in the EchoIEC104Server.py. As its name suggests, this is not a real IEC104 server implemented according to IEC 60870-5-104. This is just an echo server which sends what it receives back to clients. 
 
 The simulator can be used to simulate some IEC104 traffic, which is quiet useful to test network equipment such as Industrial Firewall.
+
+python2.7

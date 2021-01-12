@@ -2,7 +2,8 @@
 import socket
 import struct
 
-HOST = ''                 
+# HOST = '192.168.2.180'
+HOST = '192.168.3.8'
 PORT = 2404              
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 l_onoff=1          
