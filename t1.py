@@ -40,24 +40,25 @@ class relayop():
         print('关闭所有',self.dll.usb_relay_device_close_all_relay_channel(self.bb))
 
 
-#继电器部分
-relay = relayop()
-time.sleep(1)
-relay.closeall()
-time.sleep(1)
-state = 0
-
-
-def opRelay(Relay):
-    global state
-    if state == 0:
-        relay.open(Relay)
-        state = 1
-    else:
-        relay.close(Relay)
-        state = 0
-
-
-for i in range(10):
-    opRelay(1)
+if __name__ == '__main__':
+    #继电器部分
+    relay = relayop()
     time.sleep(1)
+    relay.closeall()
+    time.sleep(1)
+    state = 0
+
+
+    def opRelay(Relay):
+        global state
+        if state == 0:
+            relay.open(Relay)
+            state = 1
+        else:
+            relay.close(Relay)
+            state = 0
+
+
+    for i in range(10):
+        opRelay(1)
+        time.sleep(1)
