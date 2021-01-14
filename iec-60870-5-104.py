@@ -8,6 +8,8 @@ Desc: iec-60870-5-104 (IEC 104) protocol tool:
 """
 import time
 
+from t1 import relayop
+
 __author__ = "Aleksandr Timorin"
 __copyright__ = "Copyright 2013, Positive Technologies"
 __license__ = "GNU GPL v3"
@@ -180,3 +182,25 @@ if __name__ == '__main__':
             dst = (ip, 2404)
             recv, asdu_addr = iec104(dst)
             print "ip: {0}, recv: {1}, asdu_addr: {2}".format(ip, recv.encode('hex'), asdu_addr)
+
+    #继电器部分
+    relay = relayop()
+    time.sleep(1)
+    relay.closeall()
+    time.sleep(1)
+    state = 0
+
+
+    def opRelay(Relay):
+        global state
+        if state == 0:
+            relay.open(Relay)
+            state = 1
+        else:
+            relay.close(Relay)
+            state = 0
+
+
+    for i in range(10):
+        opRelay(1)
+        time.sleep(1)
