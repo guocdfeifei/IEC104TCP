@@ -1,8 +1,10 @@
 # coding:utf-8
 #author=guoff
 #date  17:08
-str1='09:0300:12' #类型:原因类型:分组长度
-baowen = '68 10 00 00 00 00 09 02 03 00 01 00 01 40 00 01 00 00 02 40 00 02 00 00 '.replace(' ','')
+import struct
+
+str1='0d:0300:20' #类型:原因类型:分组长度
+baowen = '68 10 00 00 00 00 0d 02 03 00 01 00 01 40 00 a6 9b 64 bf 00 '.replace(' ','')
 '''
 2021/3/3/ 17:21:23.295 TCP:14.115.31.1:2404 --> 14.10.10.2:42454 nbyte:<28>
 68 1A 18 4E 1A 00 0D 02 03 00 03 00 63 09 00 8C 68 DB 3E 00 64 09 00 D7 9C 1B 3F 00 
@@ -27,12 +29,13 @@ if ti==str1list[0] and vsq>0 and resan ==str1list[1]:
     beginindex = 20+4 #原因后面有公共地址，开始
     while True:
         tmpstr = baowen[beginindex:beginindex+int(str1list[2])]
-        print('开始循环获取',tmpstr)
+        print('begin tmpstr:',tmpstr)
 
         if len(tmpstr)>0:
             addtmp1 = tmpstr[:6]
-            valuetmp = tmpstr[6:10]
-            tmpadd = {'add':addtmp1[2:4]+addtmp1[:2],'value':valuetmp[2:4]+valuetmp[:2]}
+            valuetmp = tmpstr[6:14]
+            print('addtmp1:',addtmp1,'  valuetmp:',valuetmp)
+            tmpadd = {'add':addtmp1[2:4]+addtmp1[:2],'value':struct.unpack('f', valuetmp.decode('hex'))[0]}
             datalist.append(tmpadd)
             beginindex = beginindex+int(str1list[2])
         else:

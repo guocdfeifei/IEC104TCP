@@ -9,7 +9,7 @@ Desc: iec-60870-5-104 (IEC 104) protocol tool:
 import time
 
 from t1 import relayop
-
+import struct
 __author__ = "Aleksandr Timorin"
 __copyright__ = "Copyright 2013, Positive Technologies"
 __license__ = "GNU GPL v3"
@@ -43,6 +43,7 @@ class conRelay():
         self.relay.closeall()
         time.sleep(1)
         self.state = 0
+        # self.opRelay(1)
 
     def opRelay(self,Relay):
         if self.state == 0:
@@ -90,6 +91,7 @@ def recv_from_socket(sock, rsize=1):
 
 # gshowStr = ''
 def iec104(dst,cf,prcesstext,monitortext):
+    # try:
     conrelay = conRelay()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,7 +125,7 @@ def iec104(dst,cf,prcesstext,monitortext):
 
     if recv:
         logging.info('{0}'.format(dst))
-        print "testfr recv: %s" % recv
+        # print "testfr recv: %s" % recv
         logging.debug('iec104 TESTFR : recv: %s' % recv.encode('hex'))
         # print "testfr recv: %r" % recv
         print "testfr recv: %s" % recv.encode('hex')
@@ -232,13 +234,34 @@ def iec104(dst,cf,prcesstext,monitortext):
 
     #等待总召唤数据传入
     print('等待总召唤数据传入')
+    testnum = 1
     while True:
         recv = recv_from_socket(sock)
         while not recv:
             recv = recv_from_socket(sock)
             time.sleep(0.5)
             #超过1秒中没响应，则触发s帧
+            # '''
+            # /**
+            #  * 测试命令指令
+            #  */
+            # public static final byte[] TESTFR = new byte[] {0x68, 0x04, (byte) 0x43, 0x00, 0x00, 0x00};
+            # '''
+            # print("test s")
+            # STARTDT = [
+            #     # iec 104 apci layer
+            #     0x68,  # start
+            #     0x04,  # APDU len
+            #     0x43,  # type 0000 0111
+            #     0x00, 0x00, 0x00  # padding
+            # ]
+            # sock.send(''.join(map(chr, STARTDT)))
+            # time.sleep(5)
+            # recv = recv_from_socket(sock)
+            # time.sleep(0.5)
+
         if recv:
+            testnum = testnum + 1
             logging.info('{0}'.format(dst))
             logging.debug('iec104 C_IC_NA_1_broadcast : recv: %s' % recv.encode('hex'))
             # print "recv: %r" % recv
@@ -247,11 +270,11 @@ def iec104(dst,cf,prcesstext,monitortext):
             def doCheckData(slavData):
                 # gshowStr=''
                 showStr = ''
-                logging.info('解析配置数据{0}'.format(slavData))
+                logging.info('1解析配置数据{0}'.format(slavData))
                 ti = slavData[12:14]  # 类型
-                vsq = int(slavData[14:16], 16)  # 长度
+                vsq = int(slavData[14:16], 16)  # 长度 int(aa[14:16], 16)
                 resan = slavData[16:20]  # 原因
-                # logging.debug('解析配置数据: ti=%s  resan = %s ' % ti,resan)
+                logging.debug('1解析配置数据{0}{1}'.format(ti,marchlist[0]))
                 if ti == marchlist[0] and vsq > 0 and resan == marchlist[1]:
                     datalist = []
                     beginindex = 20 + 4  # 原因后面有公共地址，开始
@@ -259,12 +282,14 @@ def iec104(dst,cf,prcesstext,monitortext):
                         tmpstr = slavData[beginindex:beginindex + int(marchlist[2])]
                         # print('开始循环获取', tmpstr)
                         logging.debug('开始循环获取: %s' % tmpstr)
-                        if len(tmpstr) > 0:
+                        if len(tmpstr) > 0 and tmpstr[:2]!='68' :#and len(tmpstr)==marchlist[2]
                             addtmp1 = tmpstr[:6]
-                            valuetmp = tmpstr[6:10]
-                            tmpadd = {'add': addtmp1[2:4] + addtmp1[:2], 'value': valuetmp[2:4] + valuetmp[:2]}
+                            valuetmp = tmpstr[6:14]
+                            tmpadd = {'add': addtmp1[2:4] + addtmp1[:2], 'value': struct.unpack('f', valuetmp.decode('hex'))[0]}#valuetmp[2:4] + valuetmp[:2]}
                             datalist.append(tmpadd)
                             beginindex = beginindex + int(marchlist[2])
+                        # elif tmpstr[:2]!='68':
+                        #     doCheckData(slavData[beginindex:])
                         else:
                             break
                     # print('datalist', datalist)
@@ -283,13 +308,14 @@ def iec104(dst,cf,prcesstext,monitortext):
                                 # else:
                                 #     gshowStr = gshowStr + subChecklist[1]+":"+str(int(tmpdata['value'], 16)*float(subChecklist[2]))+"  "
 
-                                showStrlist[subChecklist[1]] = str(int(tmpdata['value'], 16)*float(subChecklist[2]))
+                                showStrlist[subChecklist[1]] = str(tmpdata['value'])#str(int(tmpdata['value'], 16)*float(subChecklist[2]))
                                 logging.debug('showStrlist[subChecklist[1]] : %s' % showStrlist[subChecklist[1]] )
-                                if showStrlist[subChecklist[1]]<subChecklist[3] :
-                                    # checkedStr = checkedStr+'0'
-                                    checkedlist[i]=0
-                                else:
-                                    checkedlist[i]=1
+                                if i<len(checkedlist):
+                                    if float(showStrlist[subChecklist[1]])<subChecklist[3]  :
+                                        # checkedStr = checkedStr+'0'
+                                        checkedlist[i]=0
+                                    else:
+                                        checkedlist[i]=1
                             # else:
                             #     # showStr = showStr + subChecklist[1] + ":" + subChecklist[3]  + "  "
                             #     checkedlist[i] = 1
@@ -307,33 +333,114 @@ def iec104(dst,cf,prcesstext,monitortext):
                     # num = (len(checkedStr) - len(checkedStr.replace('0', "")))
                     if len(checkedStr.replace('0', ""))==0:
                         logging.info('满足触发开关条件{0}'.format(checkedStr))
-                        if conrelay.state == 0:
-                            conrelay.opRelay(1)
+                        # if conrelay.state == 0:
+                        conrelay.opRelay(1)
                     else:
                         logging.info('不满足触发开关条件{0}'.format(checkedStr))
-                        if conrelay.state == 1:
-                            conrelay.opRelay(1)
+                        # if conrelay.state == 0:
+                        conrelay.opRelay(1)
                 else:
                     logging.info('不满解析条件{0}'.format(marchlist))
-            if recv.encode('hex')=='680443000000':
-                prcesstext.set('监控中')
-                TESTFR = [
-                    # iec 104 apci layer
-                    0x68,  # start
-                    0x04,  # APDU len
-                    0x83,  # type 0100 0011
-                    0x00, 0x00, 0x00  # padding
+            if recv.encode('hex')=='680443000000' or '680483000000'in recv.encode('hex'):
+                if '680483000000' in recv.encode('hex'):
+                    '''
+                        /**
+         * 测试确认
+         */
+        public static final byte[] TESTFR_YES = new byte[] {0x68, 0x04, (byte) 0x83, 0x00, 0x00, 0x00};
+                    '''
 
-                ]
+                    # def print_bytes_hex(data):
+                    #     lin = '%02X' % data
+                    #     print(" ".join(lin))
+                    #     return lin
+                    testhex = 0x83
+                    TESTFR = [
+                        # iec 104 apci layer680483000000
+                        0x68,  # start
+                        0x04,  # APDU len
+                        testhex,  # type 0100 0011 0x83
+                        0x00, 0x00, 0x00  # padding
+
+                    ]
+
+                    sock.send(''.join(map(chr, TESTFR)))
+                    time.sleep(1)
+                else:
+                    prcesstext.set('监控中')
+                    TESTFR = [
+                        # iec 104 apci layer680483000000
+                        0x68,  # start
+                        0x04,  # APDU len
+                        0x43,  # type 0100 0011
+                        0x00, 0x00, 0x00  # padding
+
+                    ]
 
                 sock.send(''.join(map(chr, TESTFR)))
-                time.sleep(0.5)
-            elif len(recv.encode('hex'))>0 and recv.encode('hex')[12:14]=='09': #判断类型为遥测数据
-                logging.info('解析配置数据{0}'.format(cf.get("app", "checkdata")))
-                doCheckData(recv.encode('hex'))
+                time.sleep(1)
+            elif len(recv.encode('hex'))>0 : #判断类型为遥测数据and recv.encode('hex')[12:14]==marchlist[0]
+                logging.info('0解析配置数据{0}'.format(cf.get("app", "checkdata")))
+                pasedata = recv.encode('hex').replace('680483000000','').replace('680443000000','')
+                if len(pasedata)>10:
+                    doCheckData(pasedata)
+                    #发送S帧
+                    # snum = int('0x'+pasedata[4:6],16)+2
+                    # # snumhex = hex(snum)
+                    # # if len(snumhex)==3:
+                    # #     snumhex = '0x0'+snumhex[2:3]
+                    # TESTFR = [
+                    #     # iec 104 apci layer680483000000
+                    #     0x68,  # start
+                    #     0x04,  # APDU len
+                    #     snum,  # type 0100 0011
+                    #     0x00, 0x00, 0x00  # padding
+                    #
+                    # ]
+                    #
+                    # sock.send(''.join(map(chr, TESTFR)))
+                    # time.sleep(1)
+
             else:
                 logging.info('未解析的返回数据{0}'.format(recv.encode('hex')))
+                # 接收→S帧
+                # print("接收→S帧")
+                # STARTDT = [
+                #     # iec 104 apci layer
+                #     0x68,  # start
+                #     0x04,  # APDU len
+                #     0x43,  # type 0000 0111
+                #     0x00, 0x00, 0x00  # padding
+                # ]
+                # sock.send(''.join(map(chr, STARTDT)))
+                # time.sleep(5)
+        # else:
 
+
+        # 接收→S帧
+        snuml = int('0x' + pasedata[4:6], 16) + 2
+        snumh = int('0x' +pasedata[6:8], 16)
+        if snuml>256:
+            snuml = snuml -1
+            snumh = snumh + 1
+        print("接收→S帧")
+        # snum = int('0x' + pasedata[4:6], 16) + 2
+        STARTDT = [
+            # iec 104 apci layer
+            0x68,  # start
+            0x04,  # APDU len
+            0x01,  # type 0000 0111
+            0x00, snuml, snumh  # padding
+        ]
+        sock.send(''.join(map(chr, STARTDT)))
+        time.sleep(1)
+    # except:
+    #     errinfo = '连接失败:'+sys.exc_info()[0]
+    #     logging.error(errinfo)
+    #     prcesstext.set(errinfo)
+    #     # return '连接失败', -1
+    # finally:
+    #     iec104(dst, cf, prcesstext, monitortext)
 
     #监控遥测信息变化，变化后会主动发送么？还是需要被动查看？
 
@@ -355,7 +462,7 @@ def iec104(dst,cf,prcesstext,monitortext):
         logging.info('{0}'.format(dst))
         logging.debug('iec104 C_IC_NA_1_broadcast : recv: %s' % recv.encode('hex'))
         # print "recv: %r" % recv
-        print "c_ic_na_1 recv: %s" % recv.encode('hex')
+        print "1c_ic_na_1 recv: %s" % recv.encode('hex')
     else:
         print 'c_ic_na_1_broadcast: nothing received'
         return recv, -1
@@ -526,7 +633,7 @@ def iec104(dst,cf,prcesstext,monitortext):
             logging.info('{0}'.format(dst))
             logging.debug('iec104 C_IC_NA_1_broadcast : recv: %s' % recv.encode('hex'))
             # print "recv: %r" % recv
-            print "c_ic_na_1 recv: %s" % recv.encode('hex')
+            print "2c_ic_na_1 recv: %s" % recv.encode('hex')
         else:
             print 'c_ic_na_1_broadcast: nothing received'
             return recv, -1
