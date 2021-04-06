@@ -10,3 +10,4 @@ In term of the Server side, it is coded in the EchoIEC104Server.py. As its name 
 The simulator can be used to simulate some IEC104 traffic, which is quiet useful to test network equipment such as Industrial Firewall.
 
 python2.7
+pyinstaller QrCheck.py

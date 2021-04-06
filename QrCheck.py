@@ -7,6 +7,7 @@ import datetime
 import time
 import os, sys
 import ConfigParser
+from t1 import relayop
 
 from iec104 import iec104
 
@@ -38,6 +39,46 @@ def thread_it(func, *args):
     # t.join()
 
 
+class conRelay():
+    def __init__(self):
+
+        # logging.info('{0}'.format(dst))
+        self.relay = relayop()
+        time.sleep(1)
+        self.relay.closeall()
+        time.sleep(1)
+        self.state = 0
+        # self.opRelay(1)
+
+    def opRelay(self,Relay):
+        if self.state == 0:
+            self.relay.open(Relay)
+            self.state = 1
+        else:
+            self.relay.close(Relay)
+            self.state = 0
+
+    # 继电器部分
+    # relay = relayop()
+    # time.sleep(1)
+    # relay.closeall()
+    # time.sleep(1)
+    # state = 0
+    #
+    #
+    # def opRelay(Relay):
+    #     global state
+    #     if state == 0:
+    #         relay.open(Relay)
+    #         state = 1
+    #     else:
+    #         relay.close(Relay)
+    #         state = 0
+    #
+    #
+    # for i in range(10):
+    #     opRelay(1)
+    #     time.sleep(1)
 
 
 class Application_ui(Frame):
@@ -46,7 +87,21 @@ class Application_ui(Frame):
         Frame.__init__(self, master)
         self.master.title('琪睿监控助手--正式版--山西琪睿科技')
         self.master.geometry('439x339')
+        self.defaultModel = 1
         self.createWidgets()
+        self.prcesstext.set('正在读取配置文件')
+        self.cf = ConfigParser.ConfigParser()
+        self.conrelay = conRelay()
+
+        self.cf.read("iec104.conf")
+
+        # read by type
+        self.slave_host = self.cf.get("slave", "host")
+        self.slave_port = self.cf.getint("slave", "port")
+        self.defaultModel = self.cf.getint("app", "defaultmodel")
+        print('self.defaultModel',self.defaultModel)
+        self.v.set(self.defaultModel)
+        self.showv()
 
 
     def printinfo(self,info,a):
@@ -55,6 +110,21 @@ class Application_ui(Frame):
         self.text1.insert(INSERT, info+'\t耗时：'+str(k.total_seconds()) + '\n')
         self.text1.see(END)
 
+    def closeyou(self):
+        print('关闭油机')
+        if self.conrelay.state == 1:
+            self.conrelay.opRelay(1)
+            showinfo('提示', '油机关闭成功', parent=self.master)
+        else:
+            # tkinter.messagebox.showinfo('提示', '油机已关闭')
+            showinfo('提示', '油机已关闭', parent=self.master)
+            # self.conrelay.opRelay(1)
+    def showv(self):
+        print('showv',self.v.get())
+        if self.v.get()==1:
+            self.hi_there3['state']=DISABLED
+        else:
+            self.hi_there3['state']=''
     def gethtmldata(self,page=1):
         '''
         :param page:
@@ -63,14 +133,7 @@ class Application_ui(Frame):
         2、初始化变量
         '''
 
-        self.prcesstext.set('正在读取配置文件')
-        cf = ConfigParser.ConfigParser()
 
-        cf.read("iec104.conf")
-
-        # read by type
-        self.slave_host = cf.get("slave", "host")
-        self.slave_port = cf.getint("slave", "port")
         # a = datetime.datetime.now()
         # self.printinfo('待处理:'+str(db_host),a)
         self.prcesstext.set('正在读取配置文件'+self.slave_host)
@@ -81,7 +144,7 @@ class Application_ui(Frame):
         if begin_date <= end_date:
             print('还可以用')
             dst = (self.slave_host, self.slave_port)
-            recv, asdu_addr = iec104(dst,cf,self.prcesstext,self.monitortext)
+            recv, asdu_addr = iec104(dst,self.cf,self.prcesstext,self.monitortext,self.conrelay,self.v)
             print(recv, asdu_addr)
             # fileslist=list(set(self.needlist).difference(set(self.hadlist)).difference(set(self.errlist)))
             # #处理当前目录和失败目录共有的文件
@@ -180,11 +243,19 @@ class Application_ui(Frame):
         # self.hi_there1.place(relx=0.1, rely=0.5)
         #.grid(row=2, column=0, padx=15, pady=5)
 
-        self.hi_there2 = Button(self.TabStrip1__Tab1, text="开始", command=lambda :thread_it(self.gethtmldata, 1))#, font=("宋体", 15), width=6
-        self.hi_there2.place(relx=0.1, rely=0.1)
+        self.hi_there2 = Button(self.TabStrip1__Tab1, text="开始监控", command=lambda :thread_it(self.gethtmldata, 1))#, font=("宋体", 15), width=6
+        self.hi_there2.place(relx=0.3, rely=0.1)
         # #.grid(row=2, column=1, padx=15,pady=5)
-        # self.hi_there3 = Button(self.TabStrip1__Tab1, text="doc转docx", command=self.dozhuanhuan)#, font=("宋体", 15), width=6
-        # self.hi_there3.place(relx=0.7, rely=0.5)
+        self.v = IntVar()
+
+
+        self.radio1=Radiobutton(self.TabStrip1__Tab1, text='自动', variable=self.v, value=1, command = self.showv)#.pack(anchor=W)
+        self.radio2 =Radiobutton(self.TabStrip1__Tab1, text='手动', variable=self.v, value=2,command = self.showv )#.pack(anchor=W)
+        self.radio1.place(relx=0.01, rely=0.1)
+        self.radio2.place(relx=0.15, rely=0.1)
+
+        self.hi_there3 = Button(self.TabStrip1__Tab1, text="关闭油机", command=self.closeyou)#, font=("宋体", 15), width=6
+        self.hi_there3.place(relx=0.6, rely=0.1)
         #.grid(row=2, column=2, padx=15,pady=5)
         # self.hi_there.pack()
         # self.text1 = scrolledtext.ScrolledText(self.TabStrip1__Tab1, width=125, height=6) #, font=("华康少女字体", 15)
@@ -192,6 +263,7 @@ class Application_ui(Frame):
         # # text.grid(row=3, column=0, padx=35, pady=5, columnspan=2)
         # self.text1.place(relx=0.1, rely=0.6)
         self.TabStrip1.add(self.TabStrip1__Tab1, text='监控')
+
 
         # scroll = Scrollbar()
         # scroll.pack(side=RIGHT, fill=Y)
